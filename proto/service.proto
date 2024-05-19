@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package example;
+
+option go_package = "kdev/pkg/service";
+
+import "google/api/annotations.proto";
+
+service ExampleService {
+  rpc GetExample (ExampleRequest) returns (ExampleResponse) {
+    option (google.api.http) = {
+      get: "/v1/example"
+    };
+  }
+
+  rpc Login (LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/example/login"
+    };
+  }
+
+  rpc CreateUser (CreateUserRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      post: "/v1/example/createuser"
+    };
+  }
+
+  rpc DeleteUser (DeleteUserRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      delete: "/v1/example/deleteuser"
+    };
+  }
+
+  rpc Logout (LogoutRequest) returns (LogoutResponse) {
+    option (google.api.http) = {
+      post: "/v1/example/logout"
+    };
+  }
+}
+
+message ExampleRequest {
+  string name = 1;
+}
+
+message ExampleResponse {
+  string message = 1;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message DeleteUserRequest {
+  string username = 1;
+}
+
+message UserResponse {
+  string message = 1;
+}
+
+message LogoutRequest {
+  string token = 1;
+}
+
+message LogoutResponse {
+  string message = 1;
+}
