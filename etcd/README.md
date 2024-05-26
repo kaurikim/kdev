@@ -1,8 +1,5 @@
 
 ## ETCD 
 
-> etcdctl -C http://192.168.12.50:2379 member list
-> etcdctl -C http://192.168.12.50:4001 member list
+git clone https://github.com/guessi/docker-compose-etcd.git
 
-
-[https://etcd.io/docs/v3.5/dev-guide/local_cluster/
