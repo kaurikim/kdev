@@ -1,77 +1,204 @@
 syntax = "proto3";
 
-package example;
+package kdev.auth.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
 
 option go_package = "kdev/pkg/service";
 
-import "google/api/annotations.proto";
+service Accounts {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    description: "PSM - Accounts API"
+    external_docs: {
+    url: "https://piolink.com";
+    description: "PIOLINK CONTROLLER PSM -Accounts API";
+    }
+  };
 
-service ExampleService {
-  rpc GetExample (ExampleRequest) returns (ExampleResponse) {
+  rpc CreateAccount(Account) returns (Account) {
     option (google.api.http) = {
-      get: "/v1/example"
+      post: "/auth/v1/accounts",
+      body: "*"
     };
   }
 
-  rpc Login (LoginRequest) returns (LoginResponse) {
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse) {
     option (google.api.http) = {
-      post: "/v1/example/login"
+      get: "/auth/v1/accounts"
     };
   }
 
-  rpc CreateUser (CreateUserRequest) returns (UserResponse) {
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse) {
     option (google.api.http) = {
-      post: "/v1/example/createuser"
+      delete: "/auth/v1/accounts/{id}"
     };
   }
 
-  rpc DeleteUser (DeleteUserRequest) returns (UserResponse) {
+  rpc GetAccount(AccountRequest) returns (Account) {
     option (google.api.http) = {
-      delete: "/v1/example/deleteuser"
-    };
-  }
-
-  rpc Logout (LogoutRequest) returns (LogoutResponse) {
-    option (google.api.http) = {
-      post: "/v1/example/logout"
+      get: "/auth/v1/accounts/{id}"
     };
   }
 }
 
-message ExampleRequest {
-  string name = 1;
+service Auth {
+  rpc Generate(GenerateRequest) returns (GenerateResponse) {
+    option (google.api.http) = {
+      post: "/auth/v1/generate"
+      body: "*"
+    };
+  }
 }
 
-message ExampleResponse {
-  string message = 1;
+message AccountRequest {
+  string id = 1;
 }
 
-message LoginRequest {
-  string username = 1;
-  string password = 2;
+message AccountResponse {
+  Account account = 1;
 }
 
-message LoginResponse {
-  string token = 1;
+message ListAccountsRequest {
+	Options options = 1;
 }
 
-message CreateUserRequest {
-  string username = 1;
-  string password = 2;
+message ListAccountsResponse {
+	repeated Account accounts = 1;
 }
 
-message DeleteUserRequest {
-  string username = 1;
+message DeleteAccountRequest {
+	string id = 1;
+	Options options = 2;
 }
 
-message UserResponse {
-  string message = 1;
+message DeleteAccountResponse {}
+
+message Token {
+	string access_token = 1;
+	string refresh_token = 2;
+	int64 created = 3;
+	int64 expiry = 4;
 }
 
-message LogoutRequest {
-  string token = 1;
+message Account {
+	string id = 1;
+	string type = 2;
+	map<string, string> metadata = 4;
+	repeated string scopes = 5;
+	string issuer = 6;
+	string secret = 7;
+	string name = 8;
 }
 
-message LogoutResponse {
-  string message = 1;
+message Resource{
+	string name = 1;
+	string type = 2;
+	string endpoint = 3;
 }
+
+message GenerateRequest {
+	string id = 1;
+	map<string, string> metadata = 3;
+	repeated string scopes = 4;
+	string secret = 5;
+	string type = 6;
+	string provider = 7;
+	Options options = 8;
+	string name = 9;
+}
+
+message GenerateResponse {
+	Account account = 1;
+}
+
+message GrantRequest {
+	string scope = 1;
+	Resource resource = 2;
+	Options options = 3;
+}
+
+message GrantResponse {}
+
+message RevokeRequest {
+	string scope = 1;
+	Resource resource = 2;
+	Options options = 3;
+}
+
+message RevokeResponse {}
+
+message InspectRequest {
+	string token = 1;
+	Options options = 2;
+}
+
+message InspectResponse {
+	Account account = 1;
+}
+
+message TokenRequest {
+	string id = 1;
+	string secret = 2;
+	string refresh_token = 3;
+	int64 token_expiry = 4;
+	Options options = 5;
+}
+
+message TokenResponse {
+	Token token = 1;
+}
+
+enum Access {
+	UNKNOWN = 0;
+	GRANTED = 1;
+	DENIED = 2;
+}
+
+message Rule {
+	string id = 1;
+	string scope = 2;
+	Resource resource = 3;
+	Access access = 4;
+	int32 priority = 5;
+}
+
+message Options {
+	string namespace = 1;
+}
+
+message CreateRequest {
+	Rule rule = 1;
+	Options options = 2;
+}
+
+message CreateResponse {}
+
+message DeleteRequest {
+	string id = 1;
+	Options options = 2;
+}
+
+message DeleteResponse {}
+
+message ListRequest {
+	Options options = 2;
+}
+
+message ListResponse {
+	repeated Rule rules = 1;
+}
+
+message ChangeSecretRequest{
+	string id = 1;
+	string old_secret = 2;
+	string new_secret = 3;
+	Options options = 4;
+}
+
+message ChangeSecretResponse{}

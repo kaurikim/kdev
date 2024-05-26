@@ -10,9 +10,10 @@ prepare:
 	go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
 
 
+3RD_DIR := 3rd
 PROTO_DIR := proto
 OUT_DIR := pkg/service
-GOOGLEAPIS_DIR := $(PROTO_DIR)/googleapis
+GOOGLEAPIS_DIR := $(3RD_DIR)/googleapis
 
 PROTO_FILES := $(PROTO_DIR)/service.proto
 
