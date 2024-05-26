@@ -15,6 +15,7 @@ type Interface interface {
 	GetList(ctx context.Context, refobj runtime.Object, objlist *[]runtime.Object) error
 	Update(ctx context.Context, key string, obj runtime.Object) error
 	Delete(ctx context.Context, key string) error
+	DeleteAll(ctx context.Context) error
 	Watch(ctx context.Context, key string, refobj runtime.Object) (watch.Interface, error)
 }
 

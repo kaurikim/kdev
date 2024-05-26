@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"kdev/pkg/auth"
 	"kdev/pkg/storage"
+	"sync"
 	"testing"
 	"time"
 
@@ -261,7 +262,95 @@ func TestWatch(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Watch timed out while waiting for Deleted event")
 	}
+	TestConcurrency(t)
+	time.Sleep(1 * time.Second)
 
 	watcher.Stop()
 	time.Sleep(1 * time.Second)
+}
+func TestDeleteAll(t *testing.T) {
+	store := setupStore(t)
+	ctx := context.TODO()
+
+	// 키를 먼저 생성합니다.
+	obj := &TestObject{Name: "test", Value: "value"}
+
+	objlist := []runtime.Object{}
+	err := store.GetList(ctx, obj, &objlist)
+	if err != nil {
+		t.Errorf("GetList failed: %v", err)
+	}
+
+	for _, v := range objlist {
+		fmt.Println(v)
+	}
+
+	store.DeleteAll(ctx)
+}
+
+func TestConcurrency(t *testing.T) {
+	store := setupStore(t)
+	ctx := context.TODO()
+	key := "concurrency_key"
+
+	// 키를 먼저 생성합니다.
+	obj := &TestObject{Name: "test", Value: "value"}
+
+	store.DeleteAll(ctx)
+	err := store.Create(ctx, key, obj)
+	assert.NoError(t, err)
+
+	var wg sync.WaitGroup
+	const goroutines = 10
+
+	// Create a channel to capture errors
+	errChan := make(chan error, goroutines)
+
+	// Create a channel to capture the final values
+	finalValues := make(chan string, goroutines)
+
+	// Update function to be run concurrently
+	updateFunc := func(i int) {
+		defer wg.Done()
+		updateObj := &TestObject{Name: "test", Value: fmt.Sprintf("value_%d", i)}
+		if err := store.Update(ctx, key, updateObj); err != nil {
+			errChan <- fmt.Errorf("update error: %w", err)
+		} else {
+			finalValues <- updateObj.Value
+		}
+	}
+
+	// Start concurrent updates
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go updateFunc(i)
+	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
+	close(errChan)
+	close(finalValues)
+
+	// Check for errors
+	for err := range errChan {
+		if err != nil {
+			t.Errorf("Concurrency test failed: %v", err)
+		}
+	}
+
+	// Read the final value from the store
+	var got TestObject
+	err = store.Get(ctx, key, &got)
+	assert.NoError(t, err)
+
+	// Verify that the final value is one of the expected values
+	expectedValues := map[string]bool{}
+	for value := range finalValues {
+		expectedValues[value] = true
+	}
+
+	if !expectedValues[got.Value] {
+		t.Errorf("Final value %s is not in the expected values %v", got.Value, expectedValues)
+	}
+	store.DeleteAll(ctx)
 }

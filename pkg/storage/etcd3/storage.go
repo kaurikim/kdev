@@ -73,7 +73,7 @@ func (s *Store) GetList(ctx context.Context, refobj runtime.Object, objlist *[]r
 
 	for _, kv := range resp.Kvs {
 		obj := refobj.Clone()
-		log.Println("check", string(kv.Value))
+		log.Println("check key", string(kv.Key), " v: ", string(kv.Value))
 		if err := obj.Decode(kv.Value); err != nil {
 			logrus.Infof("디코딩 실패: %v", err)
 			continue
@@ -115,7 +115,8 @@ func (s *Store) Update(ctx context.Context, key string, obj runtime.Object) erro
 		return err
 	}
 	logrus.Infof("Update 호출: key=%s, value=%s", key, encodedValue)
-	retryLimit := 5 // 재시도 횟수 제한
+	// FIXME: 차후 개선 필요
+	retryLimit := 30 // 재시도 횟수 제한
 	for attempt := 0; attempt < retryLimit; attempt++ {
 		resp, err := s.Client.Get(ctx, key)
 		if err != nil {
@@ -133,14 +134,14 @@ func (s *Store) Update(ctx context.Context, key string, obj runtime.Object) erro
 
 		txnResp, err := txn.Commit()
 		if err != nil {
-			logrus.Infof("업데이트 트랜잭션 실패: %v", err)
+			logrus.Infof("업데이트 트랜잭션 실패: key: %s %v", key, err)
 			return err
 		}
 		if txnResp.Succeeded {
 			log.Println("업데이트 트랜잭션 성공")
 			return nil
 		}
-		logrus.Infof("업데이트 트랜잭션 실패, 재시도 %d번", attempt+1)
+		logrus.Infof("업데이트 트랜잭션 실패, 재시도 key: %s, %d번", key, attempt+1)
 		time.Sleep(time.Duration(attempt+1) * 10 * time.Millisecond) // 지수 백오프
 	}
 	logrus.Println("업데이트 최대 재시도 횟수 초과")
@@ -178,6 +179,21 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 		log.Println("삭제 트랜잭션 재시도")
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+// DeleteAll 함수는 s.PathPrefix와 매칭되는 모든 키를 삭제합니다.
+func (s *Store) DeleteAll(ctx context.Context) error {
+	logrus.Infof("DeleteAll 호출: prefix=%s", s.PathPrefix)
+
+	// Delete 요청을 보내서 prefix에 매칭되는 모든 키를 삭제합니다.
+	_, err := s.Client.Delete(ctx, s.PathPrefix, clientv3.WithPrefix())
+	if err != nil {
+		logrus.Infof("전체 키 삭제 실패: %v", err)
+		return err
+	}
+
+	logrus.Infof("모든 키 삭제 성공")
+	return nil
 }
 
 // Watch 메서드 구현
