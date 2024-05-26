@@ -2,22 +2,20 @@ package storage
 
 import (
 	"context"
+
+	"kdev/pkg/storage/watch"
+
+	"kdev/pkg/runtime"
 )
 
-// type Serializer interface {
-type Object interface {
-	Encode() (string, error)
-	Decode([]byte) error
-	Clone() Object
-}
-
 type Interface interface {
-	Create(ctx context.Context, key string, obj Object) error
-	//Read(ctx context.Context, key string) (storage.Object, error)
-	Get(ctx context.Context, key string, out Object) error
-	GetList(ctx context.Context, refobj Object, objlist *[]Object) error
-	Update(ctx context.Context, key string, obj Object) error
+	Create(ctx context.Context, key string, obj runtime.Object) error
+	//Read(ctx context.Context, key string) (storage.runtime.Object, error)
+	Get(ctx context.Context, key string, out runtime.Object) error
+	GetList(ctx context.Context, refobj runtime.Object, objlist *[]runtime.Object) error
+	Update(ctx context.Context, key string, obj runtime.Object) error
 	Delete(ctx context.Context, key string) error
+	Watch(ctx context.Context, key string, refobj runtime.Object) (watch.Interface, error)
 }
 
 type GroupResource struct {

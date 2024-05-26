@@ -1,8 +1,9 @@
 package model
 
 import (
-	"kdev/pkg/storage"
 	"log"
+
+	"kdev/pkg/runtime"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -23,7 +24,7 @@ func (entity *Entity[M]) Set(entry M) {
 	entity.Entry = proto.Clone(entry).(M)
 }
 
-func (entity *Entity[M]) Clone() storage.Object {
+func (entity *Entity[M]) Clone() runtime.Object {
 	return NewEntity(entity.Entry)
 }
 
