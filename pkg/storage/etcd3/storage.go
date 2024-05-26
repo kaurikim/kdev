@@ -23,7 +23,6 @@ type Store struct {
 }
 
 func NewEtcdStorage(cli *clientv3.Client, prefix string) (storage.Interface, error) {
-	logrus.Println("etcd 클라이언트 생성 성공")
 	fullPathPrefix := ensureTrailingSlash(path.Join("/", prefix))
 
 	logrus.Infof("새로운 저장소 생성: %s", fullPathPrefix)
@@ -165,7 +164,7 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 		kv := resp.Kvs[0]
 		txn := s.Client.Txn(ctx)
 		txn.If(clientv3.Compare(clientv3.ModRevision(key), "=", kv.ModRevision)).
-			Then(clientv3.OpDelete(key))
+			Then(clientv3.OpDelete(key, clientv3.WithPrevKV()))
 
 		txnResp, err := txn.Commit()
 		if err != nil {
@@ -181,30 +180,10 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 	}
 }
 
-type etcdWatch struct {
-	resultChan chan watch.Event
-	stopChan   chan struct{}
-}
-
-func (e *etcdWatch) Stop() {
-	logrus.Infoln("ResultChan 호출")
-	select {
-	case <-e.stopChan:
-		// 이미 중지됨
-	default:
-		close(e.stopChan)
-	}
-}
-
-func (e *etcdWatch) ResultChan() <-chan watch.Event {
-	logrus.Infoln("ResultChan 호출")
-	return e.resultChan
-}
-
 // Watch 메서드 구현
 func (s *Store) Watch(ctx context.Context, key string, refobj runtime.Object) (watch.Interface, error) {
 	fullKey := path.Join(s.PathPrefix, key)
-	watchChan := s.Client.Watch(ctx, fullKey, clientv3.WithPrefix())
+	watchChan := s.Client.Watch(ctx, fullKey, clientv3.WithPrefix(), clientv3.WithPrevKV())
 
 	eventChan := make(chan watch.Event, watch.DefaultChanSize)
 	stopChan := make(chan struct{})
@@ -228,7 +207,7 @@ func (s *Store) Watch(ctx context.Context, key string, refobj runtime.Object) (w
 				}
 				for _, ev := range resp.Events {
 					logrus.Infof("이벤트: %v", ev.Type)
-					logrus.Infoln("이벤트: ", string(ev.Kv.Key), string(ev.Kv.Value))
+					logrus.Infof("이벤트: key %s %s", string(ev.Kv.Key), string(ev.Kv.Value))
 					event := watch.Event{}
 					switch ev.Type {
 					case clientv3.EventTypePut:
@@ -237,21 +216,28 @@ func (s *Store) Watch(ctx context.Context, key string, refobj runtime.Object) (w
 						} else {
 							event.Type = watch.Modified
 						}
+						obj := refobj.Clone()
+						if err := obj.Decode(ev.Kv.Value); err != nil {
+							logrus.Errorf("디코딩 실패: %v", err)
+							eventChan <- watch.Event{Type: watch.Error, Object: nil}
+							continue
+						}
+						event.Object = obj
 					case clientv3.EventTypeDelete:
 						event.Type = watch.Deleted
+						obj := refobj.Clone()
+						if err := obj.Decode(ev.PrevKv.Value); err != nil {
+							logrus.Errorf("디코딩 실패: %v", err)
+							eventChan <- watch.Event{Type: watch.Error, Object: nil}
+							continue
+						}
+						logrus.Infof("DELETED KEY %s VAL: %s: ", string(ev.Kv.Key), string(ev.PrevKv.Value))
+						event.Object = obj
 					default:
 						logrus.Infof("알 수 없는 이벤트 타입: %v", ev.Type)
 						event.Type = watch.Error
 					}
 					logrus.Infoln("이벤트 타입: ", string(event.Type))
-
-					obj := refobj.Clone()
-					if err := obj.Decode(ev.Kv.Value); err != nil {
-						logrus.Errorf("디코딩 실패: %v", err)
-						eventChan <- watch.Event{Type: watch.Error, Object: nil}
-						continue
-					}
-					event.Object = obj
 					eventChan <- event
 				}
 			}
@@ -262,4 +248,24 @@ func (s *Store) Watch(ctx context.Context, key string, refobj runtime.Object) (w
 		resultChan: eventChan,
 		stopChan:   stopChan,
 	}, nil
+}
+
+type etcdWatch struct {
+	resultChan chan watch.Event
+	stopChan   chan struct{}
+}
+
+func (e *etcdWatch) Stop() {
+	logrus.Infoln("Stop 호출")
+	select {
+	case <-e.stopChan:
+		// 이미 중지됨
+	default:
+		close(e.stopChan)
+	}
+}
+
+func (e *etcdWatch) ResultChan() <-chan watch.Event {
+	logrus.Infoln("ResultChan 호출")
+	return e.resultChan
 }
