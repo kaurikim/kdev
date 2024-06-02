@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	GEndpoints = []string{"localhost:49855", "localhost:49856", "localhost:49857"}
+	GEndpoints = []string{"localhost:52988", "localhost:52989", "localhost:52990"}
 )
 
 type TestObject struct {
@@ -163,7 +163,7 @@ func TestGetList(t *testing.T) {
 	obj1 := &TestObject{Name: "test1", Value: "value1"}
 	obj2 := &TestObject{Name: "test2", Value: "value2"}
 
-	err := store.Create(ctx, "key1", obj1)
+	err := store.Create(ctx, "hello/key1", obj1)
 	assert.NoError(t, err)
 	err = store.Create(ctx, "key2", obj2)
 	assert.NoError(t, err)
@@ -173,7 +173,7 @@ func TestGetList(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, objlist, 2)
 
-	err = store.Delete(ctx, "key1")
+	err = store.Delete(ctx, "hello/key1")
 	assert.NoError(t, err)
 	err = store.Delete(ctx, "key2")
 	assert.NoError(t, err)
@@ -219,7 +219,7 @@ func TestDelete(t *testing.T) {
 func TestWatch(t *testing.T) {
 	store := setupStore(t)
 	ctx := context.TODO()
-	key := "key"
+	key := "/test/user"
 
 	watcher, err := store.Watch(ctx, "", &TestObject{})
 	assert.NoError(t, err)
@@ -291,7 +291,7 @@ func TestDeleteAll(t *testing.T) {
 func TestConcurrency(t *testing.T) {
 	store := setupStore(t)
 	ctx := context.TODO()
-	key := "concurrency_key"
+	key := "/user/test/"
 
 	// 키를 먼저 생성합니다.
 	obj := &TestObject{Name: "test", Value: "value"}
